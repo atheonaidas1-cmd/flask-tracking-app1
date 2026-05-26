@@ -59,9 +59,8 @@ def index():
 def log():
     ip = request.args.get('ip')
     ua = request.args.get('ua')
-    # Perform IP geolocation lookup
     geo = {}
-    if ip and ip != "127.0.0.1":
+    if ip and ip != "127.0.0.1" and not ip.startswith("192.168."):
         try:
             resp = requests.get(f"http://ip-api.com/json/{ip}?fields=status,country,city,lat,lon,isp,query", timeout=5)
             if resp.status_code == 200:
