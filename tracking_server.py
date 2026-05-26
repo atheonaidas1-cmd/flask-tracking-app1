@@ -67,13 +67,17 @@ def log():
                 geo = resp.json()
         except:
             geo = {"error": "lookup_failed"}
+    # Use timezone-aware UTC timestamp
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     data = {
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": timestamp,
         "type": "ip_log",
         "ip": ip,
         "user_agent": ua,
         "geo": geo
     }
+    # Print to console for Render logs
+    print(f"GEO: {geo}")
     log_entry(data)
     return "OK", 200
 
@@ -82,8 +86,9 @@ def log_gps():
     coords = request.args.get('coords')
     acc = request.args.get('acc')
     error = request.args.get('error')
+    timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
     data = {
-        "timestamp": datetime.datetime.utcnow().isoformat(),
+        "timestamp": timestamp,
         "type": "gps",
         "coords": coords,
         "accuracy": acc,
@@ -101,6 +106,5 @@ def view_logs():
     return "<pre>" + "\n".join(lines) + "</pre>"
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get('PORT', 8080))
     app.run(host='0.0.0.0', port=port)
